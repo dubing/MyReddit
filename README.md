@@ -2,4 +2,4 @@
 
 # Welcome to the MyReddit !
 
-### [Install guide](https://github.com/dubing/MyReddit/wiki/Deployment-Guide)
+### [Install guide](https://github.com/dubing/MyReddit/wiki/Install-Guide)

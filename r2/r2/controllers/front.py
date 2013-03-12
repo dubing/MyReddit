@@ -590,9 +590,17 @@ class FrontController(RedditController, OAuth2ResourceController):
     def _edit_normal_reddit(self, location, num, after, reverse, count, created,
                             name, user):
         # moderator is either reddit's moderator or an admin
-        is_moderator = c.user_is_loggedin and c.site.is_moderator(c.user) or c.user_is_admin
+        moderator_rel = c.user_is_loggedin and c.site.get_moderator(c.user)
+        is_moderator = c.user_is_admin or moderator_rel
+        is_unlimited_moderator = c.user_is_admin or (
+            moderator_rel and moderator_rel.is_superuser())
+        is_moderator_with_perms = lambda *perms: (
+            c.user_is_admin
+            or moderator_rel and all(moderator_rel.has_permission(perm)
+                                     for perm in perms))
+
         extension_handling = False
-        if is_moderator and location == 'edit':
+        if is_moderator_with_perms('config') and location == 'edit':
             pane = PaneStack()
             if created == 'true':
                 pane.append(InfoBar(message = strings.sr_created))
@@ -600,20 +608,24 @@ class FrontController(RedditController, OAuth2ResourceController):
             c.site = Subreddit._byID(c.site._id, data=True, stale=False)
             pane.append(CreateSubreddit(site = c.site))
         elif location == 'moderators':
-            pane = ModList(editable = is_moderator)
-        elif is_moderator and location == 'banned':
-            pane = BannedList(editable = is_moderator)
-        elif is_moderator and location == 'wikibanned':
-            pane = WikiBannedList(editable = is_moderator)
-        elif is_moderator and location == 'wikicontributors':
-            pane = WikiMayContributeList(editable = is_moderator)
+            pane = ModList(editable=is_unlimited_moderator)
+        elif is_moderator_with_perms('access') and location == 'banned':
+            pane = BannedList(editable=is_moderator_with_perms('access'))
+        elif is_moderator_with_perms('access') and location == 'wikibanned':
+            pane = WikiBannedList(editable=is_moderator_with_perms('access'))
+        elif (is_moderator_with_perms('access')
+              and location == 'wikicontributors'):
+            pane = WikiMayContributeList(
+                editable=is_moderator_with_perms('access'))
         elif (location == 'contributors' and
               # On public reddits, only moderators can see the whitelist.
               # On private reddits, all contributors can see each other.
               (c.site.type != 'public' or
                (c.user_is_loggedin and
-                (c.site.is_moderator(c.user) or c.user_is_admin)))):
-                pane = ContributorList(editable = is_moderator)
+                (c.site.is_moderator_with_perms(c.user, 'access')
+                 or c.user_is_admin)))):
+                pane = ContributorList(
+                    editable=is_moderator_with_perms('access'))
         elif (location == 'stylesheet'
               and c.site.can_change_stylesheet(c.user)
               and not g.css_killswitch):
@@ -633,14 +645,14 @@ class FrontController(RedditController, OAuth2ResourceController):
                           c.site.stylesheet_contents)
             pane = SubredditStylesheetSource(stylesheet_contents=stylesheet)
         elif (location in ('reports', 'spam', 'modqueue', 'unmoderated')
-              and is_moderator):
+              and is_moderator_with_perms('posts')):
             c.allow_styles = True
             pane = self._make_spamlisting(location, num, after, reverse, count)
             if c.user.pref_private_feeds:
                 extension_handling = "private"
         elif (is_moderator or c.user_is_sponsor) and location == 'traffic':
             pane = trafficpages.SubredditTraffic()
-        elif is_moderator and location == 'flair':
+        elif is_moderator_with_perms('flair') and location == 'flair':
             c.allow_styles = True
             pane = FlairPane(num, after, reverse, name, user)
         elif c.user_is_sponsor and location == 'ads':
@@ -784,7 +796,7 @@ class FrontController(RedditController, OAuth2ResourceController):
                              simple=True).render()
         return res
 
-    search_help_page = "/help/search"
+    search_help_page = "/wiki/search"
     verify_langs_regex = re.compile(r"\A[a-z][a-z](,[a-z][a-z])*\Z")
     @base_listing
     @validate(query=VLength('q', max_length=512),
@@ -994,9 +1006,16 @@ class FrontController(RedditController, OAuth2ResourceController):
 
     @require_oauth2_scope("modtraffic")
     @validate(VTrafficViewer('article'),
-              article = VLink('article'))
-    def GET_traffic(self, article):
-        content = trafficpages.PromotedLinkTraffic(article)
+              article = VLink('article'),
+              before = VDate('before', format='%Y%m%d%H'),
+              after = VDate('after', format='%Y%m%d%H'))
+    def GET_traffic(self, article, before, after):
+        if before:
+            before = before.replace(tzinfo=None)
+        if after:
+            after = after.replace(tzinfo=None)
+
+        content = trafficpages.PromotedLinkTraffic(article, before, after)
         if c.render_style == 'csv':
             return content.as_csv()
 
@@ -1156,6 +1175,7 @@ class FormsController(RedditController):
             done = referer_path.startswith(request.fullpath)
         elif not token:
             return self.redirect("/password?expired=true")
+        return
         return BoringPage(_("reset password"),
                           content=ResetPassword(key=key, done=done)).render()
 

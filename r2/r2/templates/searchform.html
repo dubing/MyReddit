@@ -47,41 +47,11 @@
   </dl>
 
   <p>e.g.&#32;<code>reddit:aww site:imgur.com dog</code></p>
-  <p><a href="http://www.reddit.com/help/search">${_('see the search faq for details.')}</a></p>
+  <p><a href="http://www.reddit.com/wiki/search">${_('see the search faq for details.')}</a></p>
   </div>
 
-  <p><a href="http://www.reddit.com/help/search" id="search_showmore">${_('advanced search: by author, community...')}</a></p>
+  <p><a href="http://www.reddit.com/wiki/search" id="search_showmore">${_('advanced search: by author, community...')}</a></p>
 </%def>
 
 <form action="${add_sr('/search')}" id="search" role="search">
-  <input type="text" 
-         %if thing.prev_search:
-           value="${thing.prev_search}" style="color:black"
-         %endif
-         name="q" placeholder="${_('search reddit')}" />
-  %if thing.subreddit_search:
-    
-  %elif thing.simple:
-  <div id="searchexpando" class="infobar">
-      % if not isinstance(c.site, DefaultSR):
-      <label><input type="checkbox" name="restrict_sr" />${_('limit my search to %(path)s') % dict(path=c.site.path.rstrip('/'))}</label>
-      % endif
-
-      ${search_faq()}
-  </div>
-  %else:
-    %if not thing.site or isinstance(thing.site, DefaultSR):
-      <input type="hidden" name="restrict_sr" value="off" />
-    %else:
-      <br /><br />
-      <label><input type="checkbox" ${'checked="checked"' if thing.restrict_sr else ''} name="restrict_sr" />
-      ${_('limit my search to %(path)s') % dict(path=thing.site.path.rstrip('/'))}</label>
-    %endif
-    ${search_faq()}
-    <input type="submit" value="${_('search reddit')}" />
-  %endif
-
-  %for k, v in thing.search_params.iteritems():
-    <input type="hidden" name="${k}" value="${v}" />
-  %endfor
 </form>

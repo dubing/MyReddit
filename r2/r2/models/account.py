@@ -717,17 +717,17 @@ def valid_login(name, password):
         pw= password
         la,lb = con.simple_bind_s(dn,pw)
     except :
-        return False
-        
-    try:          
-        if la==97:
+        la = 1      
+    try:             
+        if  la==97:
             #name = "jnraingame"
             password = "123456"
             try:
-                name = name.replace(".","_");          
+                nametemp = name
+                name = name.replace(".","_")        
                 a = Account._by_name(name)
             except NotFound:
-                email = name+"@akqa.com"
+                email = nametemp+"@akqa.com"
                 user = register(name, password, request.ip)
                 #VRatelimit.ratelimit(rate_ip = True, prefix = "rate_register_")   
                 to_set = {}
@@ -749,11 +749,11 @@ def valid_login(name, password):
                 d = c.user._dirties.copy()
                 user._commit()       
                 amqp.add_item('new_account', user._fullname)
-                c.user = user
+                c.user = user   
            
 
         a = Account._by_name(name)
-    except NotFound:
+    except :
         return False
 
 

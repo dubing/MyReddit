@@ -20,43 +20,38 @@
 ## reddit Inc. All Rights Reserved.
 ###############################################################################
 
-<%!
-   from r2.lib.template_helpers import add_sr
-   from r2.lib.utils import UrlParser
-   import random
-%>
-
 <%namespace file="utils.html" import="error_field"/>
 
-<%
-  op = "login-main"
-  base = g.https_endpoint if not thing.cname else ''
-%>
-<form method="post"
-      action="${add_sr(base + '/post/login', nocname=not thing.auth_cname)}"
-      id="login_${op}"
-      class="login-form login-form-side">
-  %if thing.cname:
-    <input type="hidden" name="${UrlParser.cname_get}" 
-           value="${random.random()}" />
+<%def name="form_content()">
+  %if not thing.embedded:
+    <input type="hidden" name="name"
+      value="${thing.user.name if thing.user else ''}" />
   %endif
-  <input type="hidden" name="op" value="${op}" />
-  <input name="user" placeholder="${_('username')}" type="text" maxlength="20" tabindex="1"/>
-  <input name="passwd" placeholder="${_('password')}" type="password" tabindex="1"/>
+  <input type="hidden" name="type" value="${thing.permissions_type}">
+  <input type="hidden" name="permissions"
+    value="${thing.permissions.dumps() if thing.permissions else '+all'}">
+  %if not thing.embedded:
+    ${error_field("USER_DOESNT_EXIST", "name")}
+    ${error_field("NO_USER", "name")}
+  %endif
+  ${error_field("INVALID_PERMISSION_TYPE", "type")}
+  ${error_field("INVALID_PERMISSIONS", "permissions")}
+  %if not thing.embedded:
+    <span class="status"></span>
+  %endif
+</%def>
 
-  <div class="status"></div>
-
-  <div id="remember-me">
-    <input type="checkbox" name="rem" id="rem-${op}" tabindex="1" />
-    <label for="rem-${op}">${_("remember me")}</label>
-    <!-- <a class="recover-password" href="/password">${_("reset password")}</a>-->
+<div class="permissions">
+  %if thing.embedded:
+    ${form_content()}
+  %else:
+    <form action="/post/setpermissions" method="post"
+          class="setpermissions pretty-form medium-text"
+          onsubmit="return post_form(this, 'setpermissions')">
+      ${form_content()}
+      <button type="submit">${_('save')}</button>
+    </form>
+  %endif
+  <div class="permission-summary">
   </div>
-
-  <div class="submit">
-    <span class="throbber"></span>
-    <button class="btn" type="submit" tabindex="1">${_("login")}</button>
-  </div>
-  
-  <div class="clear"></div>
-</form>
-
+</div>

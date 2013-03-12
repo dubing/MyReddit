@@ -687,7 +687,7 @@ class StripeController(GoldPaymentController):
 
         charge = event.data.object
         description = charge.description
-        passthrough, buyer_name = description.split('-')
+        passthrough, buyer_name = description.split('-', 1)
         transaction_id = 'S%s' % charge.id
         pennies = charge.amount
         return status, passthrough, transaction_id, pennies
@@ -831,7 +831,9 @@ def validate_blob(custom):
             except NotFound:
                 raise GoldException('bad comment')
         ret['signed'] = payment_blob.get('signed', False)
-        ret['giftmessage'] = payment_blob.get('giftmessage', False)
+        giftmessage = payment_blob.get('giftmessage')
+        giftmessage = _force_unicode(giftmessage) if giftmessage else None
+        ret['giftmessage'] = giftmessage
     elif goldtype not in ('onetime', 'autorenew', 'creddits'):
         raise GoldException('bad goldtype')
 
